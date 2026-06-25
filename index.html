@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Suivi CrossFit EPS</title>
+<style>
+  :root {
+    --primary: #2c3e50;
+    --primary-dark: #1a252f;
+    --accent: #e67e22;
+    --bg: #f4f4f4;
+    --green: #27ae60;
+    --red: #e74c3c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg); margin: 0; padding: 16px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .page { width: 100%; max-width: 1100px; }
+  h1 { color: var(--primary); text-align: center; font-size: 1.5rem; margin-bottom: 4px; }
+  .subtitle { text-align: center; color: #777; font-size: .9rem; margin-bottom: 18px; }
+  h2 { color: var(--primary); font-size: 1.05rem; margin: 0 0 14px 0; }
+  .card {
+    background: #fff; padding: 18px; border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 18px;
+  }
+  .hidden { display: none !important; }
+  .panels-container { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+  .panel { flex: 1 1 340px; background: #fff; border-radius: 12px; padding: 18px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+  .form-grid, .block-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px;
+  }
+  .form-group { display: flex; flex-direction: column; }
+  label { font-weight: bold; margin-bottom: 5px; color: #555; font-size: 0.85rem; }
+  input, select {
+    padding: 10px; border: 1px solid #ddd; border-radius: 6px;
+    font-size: 0.95rem; background: #fff; width: 100%;
+  }
+  input:focus, select:focus { border-color: var(--accent); outline: none; }
+  .btn-primary, .btn-secondary {
+    padding: 12px 16px; border: none; border-radius: 8px;
+    font-size: 0.95rem; font-weight: bold; cursor: pointer; transition: background .2s;
+  }
+  .btn-primary { background: var(--primary); color: #fff; width: 100%; margin-top: 14px; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-primary:disabled { background: #ccc; cursor: not-allowed; }
+  .btn-secondary { background: #eee; color: var(--primary); width: 100%; margin-top: 10px; }
+  .btn-secondary:hover { background: #ddd; }
+  .exo-block {
+    border: 2px solid #eee; border-left: 6px solid #ddd; border-radius: 10px;
+    padding: 14px; margin-bottom: 12px; transition: border-color .2s;
+  }
+  .exo-block-header {
+    display: inline-block; background: #bbb; color: #fff;
+    font-weight: bold; font-size: 0.8rem; padding: 4px 12px;
+    border-radius: 20px; margin-bottom: 10px; transition: background .2s;
+  }
+  #statusMsg { text-align: center; margin-top: 12px; font-weight: bold; display: none; padding: 10px; border-radius: 8px; }
+  .success { color: var(--green); background: #eafaf1; display: block !important; }
+  .error { color: var(--red); background: #fdecea; display: block !important; }
+  .loader {
+    border: 3px solid #f3f3f3; border-top: 3px solid #fff; border-radius: 50%;
+    width: 16px; height: 16px; animation: spin 1s linear infinite;
+    display: none; vertical-align: middle; margin-left: 8px;
+  }
+  @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+  .history-list { margin-top: 12px; }
+  .session-card { border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  .session-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 14px; background: #f9f9f9; cursor: pointer; font-weight: bold;
+    color: var(--primary); font-size: 0.9rem;
+  }
+  .session-header:hover { background: #f0f0f0; }
+  .session-arrow { transition: transform .2s; }
+  .session-arrow.open { transform: rotate(90deg); }
+  .session-body { display: none; padding: 0 14px 12px 14px; }
+  .session-body.open { display: block; }
+  table { width: 100%; border-collapse: collapse; margin-top: 6px; font-size: 0.82rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid #eee; }
+  th { background: var(--primary); color: #fff; }
+  tr:nth-child(even) { background: #f9f9f9; }
+  .muted { color: #888; font-size: 0.85rem; text-align: center; padding: 8px; }
+  .legend { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-bottom: 18px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; color: #555; }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>🏋️ Suivi Séance CrossFit – EPS</h1>
+  <p class="subtitle">Chaque élève remplit sa colonne (classe, pseudo, séance), l'enregistrement se fait en une seule fois pour les deux.</p>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="panels-container" id="panelsContainer">
+    <div class="panel" data-panel="1">
+      <h2>👤 Élève 1 <span class="history-name"></span></h2>
+      <div class="setup">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Classe</label>
+            <select class="classe-select" required>
+              <option value="" disabled selected>Choisir...</option>
+              <optgroup label="5e">
+                <option value="5A">5A</option>
+                <option value="5B">5B</option>
+                <option value="5C">5C</option>
+                <option value="5D">5D</option>
+                <option value="5E">5E</option>
+              </optgroup>
+              <optgroup label="3e">
+                <option value="3A">3A</option>
+                <option value="3B">3B</option>
+                <option value="3C">3C</option>
+                <option value="3D">3D</option>
+                <option value="3E">3E</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Pseudo</label>
+            <input type="text" class="pseudo-input" placeholder="Ex: Julien">
+          </div>
+          <div class="form-group">
+            <label>Date de la séance</label>
+            <input type="date" class="date-input">
+          </div>
+          <div class="form-group">
+            <label>Nombre de familles</label>
+            <select class="nb-select">
+              <option value="1">1</option><option value="2">2</option>
+              <option value="3">3</option><option value="4" selected>4</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary start-btn">Commencer la séance ▶</button>
+      </div>
+      <div class="blocks-section hidden">
+        <div class="blocks-container"></div>
+        <button class="btn-secondary reset-btn">↩ Recommencer</button>
+      </div>
+      <button class="btn-secondary history-btn">📜 Voir l'historique</button>
+      <div class="history-list"></div>
+    </div>
+
+    <div class="panel" data-panel="2">
+      <h2>👤 Élève 2 <span class="history-name"></span></h2>
+      <div class="setup">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Classe</label>
+            <select class="classe-select" required>
+              <option value="" disabled selected>Choisir...</option>
+              <optgroup label="5e">
+                <option value="5A">5A</option>
+                <option value="5B">5B</option>
+                <option value="5C">5C</option>
+                <option value="5D">5D</option>
+                <option value="5E">5E</option>
+              </optgroup>
+              <optgroup label="3e">
+                <option value="3A">3A</option>
+                <option value="3B">3B</option>
+                <option value="3C">3C</option>
+                <option value="3D">3D</option>
+                <option value="3E">3E</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Pseudo</label>
+            <input type="text" class="pseudo-input" placeholder="Ex: Léa">
+          </div>
+          <div class="form-group">
+            <label>Date de la séance</label>
+            <input type="date" class="date-input">
+          </div>
+          <div class="form-group">
+            <label>Nombre de familles</label>
+            <select class="nb-select">
+              <option value="1">1</option><option value="2">2</option>
+              <option value="3">3</option><option value="4" selected>4</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn-primary start-btn">Commencer la séance ▶</button>
+      </div>
+      <div class="blocks-section hidden">
+        <div class="blocks-container"></div>
+        <button class="btn-secondary reset-btn">↩ Recommencer</button>
+      </div>
+      <button class="btn-secondary history-btn">📜 Voir l'historique</button>
+      <div class="history-list"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <button class="btn-primary" id="saveAllBtn" style="margin-top:0;">
+      💾 Enregistrer la/les séance(s)<span class="loader" id="saveLoader"></span>
+    </button>
+    <div id="statusMsg"></div>
+  </div>
+</div>
+
+<script>
+const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwjxAOhX0V2KEKyd2A0FIZ1hgtxYpgtRHR4CL6agCi67w3jqaGH3SnADh3Vq8FymQMXwg/exec"; // doit finir par /exec
+
+const exercicesData = {
+  "Cardio": ["Burpee", "Jumping Jack", "Corde à sauter", "Mountain Climber"],
+  "Force": ["Pompes", "Dips", "Med ball sto"],
+  "Résistance": ["Abdos med ball", "Gainage", "Chaise"],
+  "Explosivité": ["Fente", "Squat", "Box jump"]
+};
+const FAMILY_COLORS = {
+  "Cardio": "#e74c3c",
+  "Force": "#2980b9",
+  "Résistance": "#27ae60",
+  "Explosivité": "#9b59b6"
+};
+const TIMED_EXERCISES = ["Gainage", "Chaise"];
+
+function buildLegend() {
+  const legend = document.getElementById('legend');
+  legend.innerHTML = Object.entries(FAMILY_COLORS).map(([fam, color]) =>
+    `<div class="legend-item"><span class="legend-dot" style="background:${color}"></span>${fam}</div>`
+  ).join('');
+}
+
+function initPanel(panelEl) {
+  panelEl.querySelector('.date-input').valueAsDate = new Date();
+  panelEl.querySelector('.start-btn').addEventListener('click', () => startPanel(panelEl));
+  panelEl.querySelector('.reset-btn').addEventListener('click', () => resetPanel(panelEl));
+  panelEl.querySelector('.history-btn').addEventListener('click', () => loadHistoryForPanel(panelEl));
+}
+
+function startPanel(panelEl) {
+  const classe = panelEl.querySelector('.classe-select').value;
+  const pseudo = panelEl.querySelector('.pseudo-input').value.trim();
+  const date = panelEl.querySelector('.date-input').value;
+  if (!classe || !pseudo || !date) { alert("Merci de renseigner la classe, le pseudo et la date."); return; }
+
+  const nb = parseInt(panelEl.querySelector('.nb-select').value, 10);
+  const container = panelEl.querySelector('.blocks-container');
+  container.innerHTML = '';
+  for (let i = 0; i < nb; i++) container.appendChild(createBlock(panelEl, i));
+  refreshFamilleOptions(panelEl);
+
+  panelEl.querySelector('.setup').classList.add('hidden');
+  panelEl.querySelector('.blocks-section').classList.remove('hidden');
+  panelEl.querySelector('.history-name').textContent = '· ' + classe + ' · ' + pseudo;
+}
+
+function resetPanel(panelEl) {
+  panelEl.querySelector('.blocks-section').classList.add('hidden');
+  panelEl.querySelector('.setup').classList.remove('hidden');
+  panelEl.querySelector('.blocks-container').innerHTML = '';
+}
+
+function createBlock(panelEl, i) {
+  const div = document.createElement('div');
+  div.className = 'exo-block';
+  div.innerHTML = `
+    <div class="exo-block-header">Famille ${i + 1}</div>
+    <div class="block-grid">
+      <div class="form-group">
+        <label>Famille d'exercices</label>
+        <select class="famille-select" required></select>
+      </div>
+      <div class="form-group">
+        <label>Exercice</label>
+        <select class="exercice-select" required disabled>
+          <option value="">Choisir d'abord une famille</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Niveau (1 à 4)</label>
+        <select class="niveau-select" required>
+          <option value="1">Niveau 1</option><option value="2">Niveau 2</option>
+          <option value="3">Niveau 3</option><option value="4">Niveau 4</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Séries</label>
+        <input type="number" class="series-input" min="0" required placeholder="0">
+      </div>
+      <div class="form-group">
+        <label class="reps-label">Répétitions</label>
+        <input type="number" class="reps-input" min="0" required placeholder="0">
+      </div>
+      <div class="form-group">
+        <label>No Rep</label>
+        <input type="number" class="norep-input" min="0" required placeholder="0">
+      </div>
+    </div>`;
+
+  const famSel = div.querySelector('.famille-select');
+  const exoSel = div.querySelector('.exercice-select');
+  const repsLabel = div.querySelector('.reps-label');
+  const repsInput = div.querySelector('.reps-input');
+
+  famSel.addEventListener('change', function () {
+    const exos = exercicesData[this.value] || [];
+    exoSel.innerHTML = '<option value="" disabled selected>Choisir un exercice...</option>' +
+      exos.map(ex => `<option value="${ex}">${ex}</option>`).join('');
+    exoSel.disabled = false;
+    repsLabel.textContent = 'Répétitions';
+    repsInput.placeholder = '0';
+    updateBlockColor(div, this.value);
+    refreshFamilleOptions(panelEl);
+  });
+
+  exoSel.addEventListener('change', function () {
+    if (TIMED_EXERCISES.includes(this.value)) {
+      repsLabel.textContent = 'Durée (secondes)';
+      repsInput.placeholder = 'Ex: 30';
+    } else {
+      repsLabel.textContent = 'Répétitions';
+      repsInput.placeholder = '0';
+    }
+  });
+
+  return div;
+}
+
+function refreshFamilleOptions(panelEl) {
+  const selects = Array.from(panelEl.querySelectorAll('.famille-select'));
+  const allFamilies = Object.keys(exercicesData);
+
+  selects.forEach(sel => {
+    const usedBySiblings = selects.filter(s => s !== sel).map(s => s.value).filter(v => v);
+    const current = sel.value;
+    const available = allFamilies.filter(f => !usedBySiblings.includes(f));
+
+    sel.innerHTML = '<option value="" disabled' + (current ? '' : ' selected') + '>Choisir une famille...</option>' +
+      available.map(f => `<option value="${f}" ${f === current ? 'selected' : ''}>${f}</option>`).join('');
+  });
+}
+
+function updateBlockColor(div, family) {
+  const color = FAMILY_COLORS[family] || '#bbb';
+  div.style.borderLeftColor = color;
+  div.querySelector('.exo-block-header').style.background = color;
+}
+
+function showStatus(msg, type) {
+  const el = document.getElementById('statusMsg');
+  el.textContent = msg;
+  el.className = type;
+}
+
+function collectPanelData(panelEl) {
+  if (panelEl.querySelector('.blocks-section').classList.contains('hidden')) return null;
+
+  const classe = panelEl.querySelector('.classe-select').value;
+  const pseudo = panelEl.querySelector('.pseudo-input').value.trim();
+  const date = panelEl.querySelector('.date-input').value;
+  const blocks = panelEl.querySelectorAll('.exo-block');
+  const rows = [];
+
+  for (const b of blocks) {
+    const famille = b.querySelector('.famille-select').value;
+    const exercice = b.querySelector('.exercice-select').value;
+    const niveau = b.querySelector('.niveau-select').value;
+    const series = b.querySelector('.series-input').value;
+    const reps = b.querySelector('.reps-input').value;
+    const norep = b.querySelector('.norep-input').value;
+    if (!famille || !exercice || series === '' || reps === '' || norep === '') return { error: true };
+    rows.push({ famille, exercice, niveau, series, reps, norep });
+  }
+  return { classe, prenom: pseudo, date, sessionId: Date.now().toString() + '-' + panelEl.dataset.panel, rows };
+}
+
+document.getElementById('saveAllBtn').addEventListener('click', () => {
+  if (SCRIPT_URL.includes("COLLEZ_ICI")) {
+    alert("Pense à coller l'URL de ton script Google Apps Script dans le code (variable SCRIPT_URL).");
+    return;
+  }
+  const panels = document.querySelectorAll('.panel');
+  const sessions = [];
+  let hasError = false;
+
+  panels.forEach(panelEl => {
+    const data = collectPanelData(panelEl);
+    if (data && data.error) hasError = true;
+    else if (data) sessions.push(data);
+  });
+
+  if (hasError) { showStatus("⚠️ Merci de remplir tous les champs des séances en cours avant d'enregistrer.", 'error'); return; }
+  if (sessions.length === 0) { showStatus("⚠️ Aucune séance prête à être enregistrée.", 'error'); return; }
+
+  const btn = document.getElementById('saveAllBtn');
+  const loader = document.getElementById('saveLoader');
+  btn.disabled = true; loader.style.display = 'inline-block'; showStatus('', '');
+
+  fetch(SCRIPT_URL, {
+    method: 'POST',
+    body: new URLSearchParams({ action: 'save', sessions: JSON.stringify(sessions) })
+  })
+    .then(r => r.json())
+    .then(result => {
+      if (result.result === 'success') {
+        showStatus('✅ ' + sessions.length + ' séance(s) enregistrée(s) (' + result.rows + ' lignes au total) !', 'success');
+        document.querySelectorAll('.panel').forEach(p => {
+          if (!p.querySelector('.blocks-section').classList.contains('hidden')) {
+            resetPanel(p);
+            loadHistoryForPanel(p);
+          }
+        });
+      } else throw new Error(result.error || 'Erreur inconnue');
+    })
+    .catch(err => showStatus('❌ Erreur : ' + err.message, 'error'))
+    .finally(() => { btn.disabled = false; loader.style.display = 'none'; });
+});
+
+function loadHistoryForPanel(panelEl) {
+  if (SCRIPT_URL.includes("COLLEZ_ICI")) return;
+  const classe = panelEl.querySelector('.classe-select').value;
+  const pseudo = panelEl.querySelector('.pseudo-input').value.trim();
+  const list = panelEl.querySelector('.history-list');
+  if (!classe || !pseudo) { list.innerHTML = '<p class="muted">Choisis ta classe et renseigne ton pseudo pour voir l\'historique.</p>'; return; }
+
+  panelEl.querySelector('.history-name').textContent = '· ' + classe + ' · ' + pseudo;
+  list.innerHTML = '<p class="muted">Chargement...</p>';
+
+  fetch(SCRIPT_URL + '?action=read&classe=' + encodeURIComponent(classe) + '&name=' + encodeURIComponent(pseudo))
+    .then(r => r.json())
+    .then(data => {
+      list.innerHTML = '';
+      if (!data.sessions || data.sessions.length === 0) {
+        list.innerHTML = '<p class="muted">Aucune séance trouvée.</p>'; return;
+      }
+      data.sessions.sort((a, b) => Number(b.id) - Number(a.id));
+      data.sessions.forEach(s => {
+        const card = document.createElement('div');
+        card.className = 'session-card';
+        card.innerHTML = `
+          <div class="session-header">
+            <span>📅 ${s.date} — ${s.exercices.length} exercice(s)</span>
+            <span class="session-arrow">▶</span>
+          </div>
+          <div class="session-body">
+            <table>
+              <thead><tr><th>Famille</th><th>Exercice</th><th>Niv.</th><th>Séries</th><th>Rép./Durée</th><th>No Rep</th></tr></thead>
+              <tbody>${s.exercices.map(e => `<tr><td>${e.famille}</td><td>${e.exo}</td><td>${e.niveau}</td><td>${e.series || ''}</td><td>${e.reps}</td><td>${e.norep}</td></tr>`).join('')}</tbody>
+            </table>
+          </div>`;
+        const header = card.querySelector('.session-header');
+        const body = card.querySelector('.session-body');
+        const arrow = card.querySelector('.session-arrow');
+        header.addEventListener('click', () => { body.classList.toggle('open'); arrow.classList.toggle('open'); });
+        list.appendChild(card);
+      });
+    })
+    .catch(() => { list.innerHTML = '<p class="muted" style="color:var(--red)">Erreur de chargement.</p>'; });
+}
+
+window.addEventListener('load', () => {
+  buildLegend();
+  document.querySelectorAll('.panel').forEach(initPanel);
+});
+</script>
+</body>
+</html>
